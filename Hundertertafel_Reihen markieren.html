@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<!--
+Created using JS Bin
+http://jsbin.com
+
+Copyright (c) 2025 by moeggsi666 (http://jsbin.com/xalakaw/1/edit)
+
+Released under the MIT license: http://jsbin.mit-license.org
+-->
+<meta name="robots" content="noindex">
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hundertertafel mit Ebenen und Limit</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      padding: 20px;
+    }
+    .table-container {
+      display: grid;
+      grid-template-columns: repeat(10, 70px);
+      grid-gap: 5px;
+    }
+    .cell {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      border: 1px solid #ddd;
+      position: relative;
+      overflow: hidden;
+      background-color: white;
+    }
+    /* Container für die Nummer – immer oben */
+    .number {
+      position: relative;
+      z-index: 2;
+      text-align: center;
+      line-height: 70px;
+      font-weight: bold;
+    }
+    /* Overlay-Ebene für die farbigen Streifen */
+    .overlay {
+      position: absolute;
+      left: 0;
+      right: 0;
+      z-index: 1;
+    }
+    .buttons {
+      display: flex;
+      flex-direction: column;
+      margin-left: 20px;
+    }
+    /* Stil für die normalen Buttons */
+    .buttons button {
+      margin-bottom: 10px;
+      padding: 8px 12px;
+      border: 2px solid #ccc;
+      background-color: #f9f9f9;
+      cursor: pointer;
+      border-radius: 4px;
+      font-size: 14px;
+      transition: background-color 0.3s, border-color 0.3s;
+    }
+    .buttons button:hover {
+      background-color: #e9e9e9;
+    }
+    .buttons button.active {
+      border-color: #333;
+      background-color: #ddd;
+      color: #333;
+    }
+    /* Stil für den Limit-Button */
+    .limit-button {
+      margin-top: 20px;
+      background-color: #d0eaff;
+      border-color: #007acc;
+      color: #007acc;
+    }
+    .limit-button.active {
+      background-color: #007acc;
+      color: white;
+    }
+  </style>
+</head>
+<body>
+
+<div class="table-container" id="hundertertafel">
+  <!-- Zellen (Kreise) von 1 bis 100 -->
+</div>
+
+<div class="buttons">
+  <!-- Buttons für die Malreihen 1 bis 10 -->
+  <button onclick="toggleColor(1)" id="button1">1</button>
+  <button onclick="toggleColor(2)" id="button2">2</button>
+  <button onclick="toggleColor(3)" id="button3">3</button>
+  <button onclick="toggleColor(4)" id="button4">4</button>
+  <button onclick="toggleColor(5)" id="button5">5</button>
+  <button onclick="toggleColor(6)" id="button6">6</button>
+  <button onclick="toggleColor(7)" id="button7">7</button>
+  <button onclick="toggleColor(8)" id="button8">8</button>
+  <button onclick="toggleColor(9)" id="button9">9</button>
+  <button onclick="toggleColor(10)" id="button10">10</button>
+  
+  <!-- Zusätzlicher Button für Limit (abgesetzt und optisch anders) -->
+  <button onclick="toggleLimit()" id="limitToggle" class="limit-button">nur bis x10</button>
+</div>
+
+<script>
+  const tafel = document.getElementById("hundertertafel");
+  let activeColors = {};
+  let limitMode = false; // false: bis 100, true: nur bis x10
+
+  // Vorgegebene Farben für die Multiplikationstabellen
+  const colorMap = {
+    1: "#FF0000",  // Rot
+    2: "#00FF00",  // Grün
+    3: "#0000FF",  // Blau
+    4: "#FFFF00",  // Gelb
+    5: "#FF00FF",  // Magenta
+    6: "#00FFFF",  // Cyan
+    7: "#FFA500",  // Orange
+    8: "#800080",  // Lila
+    9: "#008000",  // Dunkelgrün
+    10: "#000080"  // Dunkelblau
+  };
+
+  // Erstelle 100 Zellen als Kreise, jede Zelle enthält einen "number"-Container
+  for (let i = 1; i <= 100; i++) {
+    const cell = document.createElement("div");
+    cell.classList.add("cell");
+    cell.setAttribute("data-number", i);
+    
+    const numberSpan = document.createElement("div");
+    numberSpan.classList.add("number");
+    numberSpan.textContent = i;
+    cell.appendChild(numberSpan);
+
+    tafel.appendChild(cell);
+  }
+
+  // Umschalten des Limit-Modus
+  function toggleLimit() {
+    limitMode = !limitMode;
+    const btn = document.getElementById("limitToggle");
+    btn.classList.toggle("active", limitMode);
+    // Der Text bleibt "nur bis x10", denn das ist die Funktion
+    updateCells();
+  }
+
+  // Toggle-Funktion: Schaltet eine Multiplikationstabelle an/aus
+  function toggleColor(multiplier) {
+    if (activeColors[multiplier]) {
+      delete activeColors[multiplier];
+      document.getElementById(`button${multiplier}`).classList.remove("active");
+    } else {
+      activeColors[multiplier] = colorMap[multiplier];
+      document.getElementById(`button${multiplier}`).classList.add("active");
+    }
+    updateCells();
+  }
+
+  // Aktualisiert alle Zellen anhand der aktiven Farben und Limit-Einstellung
+  function updateCells() {
+    const cells = tafel.children;
+    for (let i = 0; i < cells.length; i++) {
+      const cell = cells[i];
+      const num = parseInt(cell.getAttribute("data-number"));
+      
+      // Entferne alte Overlays
+      const oldOverlays = cell.querySelectorAll(".overlay");
+      oldOverlays.forEach(overlay => overlay.remove());
+      
+      // Bestimme, welche aktiven Farben für diese Zelle gelten (unter Berücksichtigung des Limits)
+      const cellColors = [];
+      for (const key in activeColors) {
+        // Limit-Modus: Nur Zahlen bis key * 10 werden berücksichtigt
+        if (limitMode) {
+          if (num <= key * 10 && num % key === 0) {
+            cellColors.push(activeColors[key]);
+          }
+        } else {
+          if (num % key === 0) {
+            cellColors.push(activeColors[key]);
+          }
+        }
+      }
+
+      // Bei nur einer Farbe: Zelle einfärben (ohne Overlay)
+      if (cellColors.length === 1) {
+        cell.style.backgroundColor = cellColors[0];
+      } else {
+        cell.style.backgroundColor = "";
+        // Falls mehrere Farben aktiv sind, erstelle horizontale Streifen als Overlays
+        if (cellColors.length > 1) {
+          const stripeHeight = 100 / cellColors.length;
+          cellColors.forEach((color, index) => {
+            const overlay = document.createElement("div");
+            overlay.classList.add("overlay");
+            overlay.style.backgroundColor = color;
+            overlay.style.top = (stripeHeight * index) + "%";
+            overlay.style.height = stripeHeight + "%";
+            overlay.style.zIndex = "1";
+            cell.appendChild(overlay);
+          });
+        }
+      }
+    }
+  }
+</script>
+
+</body>
+</html>
